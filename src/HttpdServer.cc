@@ -116,6 +116,28 @@ int HttpdServer::launch()
 	close(sock);
 }
 
+string get_last_modified(const char* full_path){
+
+	FILE* fp;
+	int fd;
+	struct stat tbuf;
+	fp = fopen(full_path,"r");
+	fd = fileno(fp);
+	
+	fstat(fd,&tbuf);
+
+	time_t modified_time = tbuf.st_mtime;
+	struct tm lt;
+
+	// multithreading
+	localtime_r(&modified_time, &lt);
+	char timebuf[80];
+	strftime(timebuf, sizeof(timebuf), "%a, %d %b %y %T %z", &lt);
+	
+	fclose(fp);
+	return timebuf;
+}
+
 void HttpdServer::handle_request(char *buf, int client_sock)
 {
 	auto log = logger();
@@ -131,8 +153,7 @@ void HttpdServer::handle_request(char *buf, int client_sock)
 
 	// Get Host header
 	char *second_line = strsep(&buf_copy, "\r\n");
-	if (strsep(&second_line, ":") != "Host")
-	// if Host not present
+	if (strcmp(strsep(&second_line, ":"), "Host") == 0)	// if Host not present
 	{
 		// build header
 		string header;
@@ -163,13 +184,17 @@ void HttpdServer::handle_request(char *buf, int client_sock)
 
 		// build header
 		header += "HTTP/1.1 200 OK\r\n";
+		header += "Server: Myserver 1.0\r\n";
+		header += "Last-Modified: "+ get_last_modified(full_path.c_str())+"\r\n";// Todo
 		header += "Content-Length: " + to_string(f_size) + "\r\n";
 		header += "Content-type: ";
+		header += "\r\n";
 	}
 	else
 	// requested file not there
 	{
 		header += "HTTP/1.1 404 NOT FOUND\r\n";
+		header += "Server: Myserver 1.0\r\n";
 		header += "\r\n";
 	}
 
