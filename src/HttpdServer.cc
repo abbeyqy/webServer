@@ -107,5 +107,10 @@ int HttpdServer::launch()
 		}
 
 		// Handle file request
+		handle_request(buffer, new_sock);
 	}
+}
+
+void HttpdServer::handle_request(char *buf, int client_sock)
+{
 }

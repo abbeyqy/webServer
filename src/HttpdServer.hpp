@@ -6,14 +6,16 @@
 
 using namespace std;
 
-class HttpdServer {
+class HttpdServer
+{
 public:
-	HttpdServer(INIReader& t_config);
+	HttpdServer(INIReader &t_config);
 
-	void launch();
+	int launch();
+	void handle_request(char *buf, int client_sock);
 
 protected:
-	INIReader& config;
+	INIReader &config;
 	string port;
 	string doc_root;
 };
