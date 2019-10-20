@@ -66,8 +66,8 @@ int HttpdServer::launch()
 	server_address.sin_addr.s_addr = htonl(INADDR_ANY); // INADDR_ANY indicates localhost
 
 	// 2. bind()
-	int b = bind(sock, (struct sockaddr *)&server_address,
-				 sizeof(server_address));
+	int b = ::bind(sock, (struct sockaddr *)&server_address,
+				   sizeof(server_address));
 
 	if (b < 0)
 	{
@@ -90,16 +90,16 @@ int HttpdServer::launch()
 	// 4. accept and receive
 	while (1)
 	{
-		int new_sock = accept(sock, (struct sockaddr *)&client_address,
-							  &client_length);
+		int client_sock = accept(sock, (struct sockaddr *)&client_address,
+								 &client_length);
 
-		if (new_sock < 0)
+		if (client_sock < 0)
 		{
 			cerr << "ERROR WHILE ACCEPTING CONNECTION" << endl;
 			close(sock);
 			continue;
 		}
-		int n = read(new_sock, buffer, 256);
+		int n = read(client_sock, buffer, 256);
 
 		if (n < 0)
 		{
@@ -107,10 +107,83 @@ int HttpdServer::launch()
 		}
 
 		// Handle file request
-		handle_request(buffer, new_sock);
+		handle_request(buffer, client_sock);
+
+		// 5. close
+		close(client_sock);
+		sleep(1);
 	}
+	close(sock);
 }
 
 void HttpdServer::handle_request(char *buf, int client_sock)
 {
+	auto log = logger();
+
+	// Copy the buffer to parse
+	char *buf_copy = (char *)malloc(strlen(buf) + 1);
+	strcpy(buf_copy, buf);
+
+	// Get the url
+	char *first_line = strsep(&buf_copy, "\r\n"); // CR = \r, LF = \n
+	strsep(&first_line, " ");
+	char *url = strsep(&first_line, " ");
+
+	// Get Host header
+	char *second_line = strsep(&buf_copy, "\r\n");
+	if (strsep(&second_line, ":") != "Host")
+	// if Host not present
+	{
+		// build header
+		string header;
+		header += "HTTP/1.1 400 CLIENT ERROR\r\n";
+		header += "\r\n";
+
+		// send header
+		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
+		return;
+	}
+
+	// Prepend doc root to get the absolute path
+	string full_path = doc_root + url;
+	log->info("Get file: {}", full_path);
+	string header;
+
+	// Validate the file path
+	int is_valid = access(full_path.c_str(), F_OK);
+
+	if (is_valid == 0)
+	// if access succeeds
+	{
+		// get file size
+		int f_size;
+		struct stat finfo;
+		stat(full_path.c_str(), &finfo);
+		f_size = finfo.st_size;
+
+		// build header
+		header += "HTTP/1.1 200 OK\r\n";
+		header += "Content-Length: " + to_string(f_size) + "\r\n";
+		header += "Content-type: ";
+	}
+	else
+	// requested file not there
+	{
+		header += "HTTP/1.1 404 NOT FOUND\r\n";
+		header += "\r\n";
+	}
+
+	// Send headers
+	send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
+
+	if (is_valid == 0)
+	// send body
+	{
+		struct stat finfo;
+		int fd = open(full_path.c_str(), O_RDONLY);
+		fstat(fd, &finfo);
+		off_t off = 0;
+		int h = sendfile(fd, client_sock, 0, &off, NULL, 0);
+		log->info("sendfile status: {}", h);
+	}
 }
