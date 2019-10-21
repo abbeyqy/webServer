@@ -275,7 +275,8 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		int fd = open(full_path.c_str(), O_RDONLY);
 		fstat(fd, &finfo);
 		off_t off = 0;
-		int h = sendfile(fd, client_sock, 0, &off, NULL, 0);
+		// int h = sendfile(fd, client_sock, 0, &off, NULL, 0);   // os version
+		int h = sendfile(client_sock, fd, 0, finfo.st_size);
 		log->info("sendfile status: {}", h);
 	}
 	return close;
