@@ -3,6 +3,7 @@
 #include "logger.hpp"
 #include "HttpdServer.hpp"
 #include <string>
+#include <regex>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <iostream>
@@ -196,11 +197,13 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	while (buf_copy != NULL)
 	{
 		char *line = strsep(&buf_copy, "\r\n");
-		// if (strchr(line, ':') == NULL)
-		// // check if ':' exists
-		// {
-		// 	bad_request = 1;
-		// }
+		// check if request header is valid
+		string sline = line;
+		regex r("(\\w)+: (.)*");
+		if (!regex_match(sline, r))
+		{
+			bad_request = 1;
+		}
 		char *key = strsep(&line, ":");
 		if (strcmp(key, "Connection") == 0)
 		{
@@ -215,18 +218,19 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		// }
 	}
 
-	// if (host == 0 || bad_request == 1) // if Host not present
-	// {
-	// 	// build header
-	// 	string header;
-	// 	header += "HTTP/1.1 400 CLIENT ERROR\r\n";
-	// 	header += "Server: Myserver 1.0\r\n";
-	// 	header += "\r\n";
+	// if (host == 0 || bad_request == 1) // if Host not present or format invalid
+	if (bad_request == 1)
+	{
+		// build header
+		string header;
+		header += "HTTP/1.1 400 CLIENT ERROR\r\n";
+		header += "Server: Myserver 1.0\r\n";
+		header += "\r\n";
 
-	// 	// send header
-	// 	send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
-	// 	return close;
-	// }
+		// send header
+		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
+		return close;
+	}
 
 	// check if url is valid (first char is "/")
 	if (strchr(url, '/') != url)
@@ -246,7 +250,8 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	string full_path = doc_root + url;
 
 	// “http://server:port/" map to “http://server:port/index.html"
-	if(strcmp(url, "/") == 0){
+	if (strcmp(url, "/") == 0)
+	{
 		log->info("transofrm");
 		full_path += "index.html";
 	}
