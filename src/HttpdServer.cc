@@ -177,7 +177,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	auto log = logger();
 	// int host = 0;
 	int close = 0;
-	// int bad_request = 0;
+	int bad_request = 0;
 
 	// Copy the buffer to parse
 	char *buf_copy = (char *)malloc(strlen(buf) + 1);
@@ -185,6 +185,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 
 	// Get the url
 	char *buf_copy1 = strsep(&buf_copy, "\r\n\r\n"); // exclude the last line
+
 	// GET / HTTP/1.1
 	char *first_line = strsep(&buf_copy1, "\r\n"); // CR = \r, LF = \n
 
@@ -222,18 +223,18 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	}
 
 	// if (host == 0 || bad_request == 1) // if Host not present or format invalid
-	// if (bad_request == 1)
-	// {
-	// 	// build header
-	// 	string header;
-	// 	header += "HTTP/1.1 400 CLIENT ERROR\r\n";
-	// 	header += "Server: Myserver 1.0\r\n";
-	// 	header += "\r\n";
+	if (bad_request == 1)
+	{
+		// build header
+		string header;
+		header += "HTTP/1.1 400 CLIENT ERROR\r\n";
+		header += "Server: Myserver 1.0\r\n";
+		header += "\r\n";
 
-	// 	// send header
-	// 	send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
-	// 	return close;
-	// }
+		// send header
+		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
+		return close;
+	}
 
 	// check if url is valid (first char is "/")
 	if (strchr(url, '/') != url)
