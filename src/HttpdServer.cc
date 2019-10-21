@@ -183,8 +183,13 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	strcpy(buf_copy, buf);
 
 	// Get the url
+	// GET / HTTP/1.1
 	char *first_line = strsep(&buf_copy, "\r\n"); // CR = \r, LF = \n
+
+	// / HTTP/1,1
 	strsep(&first_line, " ");
+
+	// /
 	char *url = strsep(&first_line, " ");
 
 	// parse the following part of the request
@@ -239,6 +244,13 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 
 	// Prepend doc root to get the absolute path
 	string full_path = doc_root + url;
+
+	// “http://server:port/" map to “http://server:port/index.html"
+	if(strcmp(url, "/") == 0){
+		log->info("transofrm");
+		full_path += "index.html";
+	}
+
 	log->info("Get file: {}", full_path);
 	string header;
 
