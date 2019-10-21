@@ -223,6 +223,20 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	// 	return close;
 	// }
 
+	// check if url is valid (first char is "/")
+	if (url.at(0) != '/')
+	{
+		// build header
+		string header;
+		header += "HTTP/1.1 400 CLIENT ERROR\r\n";
+		header += "Server: Myserver 1.0\r\n";
+		header += "\r\n";
+
+		// send header
+		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
+		return close;
+	}
+
 	// Prepend doc root to get the absolute path
 	string full_path = doc_root + url;
 	log->info("Get file: {}", full_path);
