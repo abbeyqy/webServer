@@ -175,6 +175,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	auto log = logger();
 	int host = 0;
 	int close = 0;
+	int bad_request = 0;
 
 	// Copy the buffer to parse
 	char *buf_copy = (char *)malloc(strlen(buf) + 1);
@@ -189,6 +190,11 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	while (buf_copy != NULL)
 	{
 		char *line = strsep(&buf_copy, "\r\n");
+		if (strchr(line, ':') == NULL)
+		// check if ':' exists
+		{
+			bad_request = 1;
+		}
 		char *key = strsep(&line, ":");
 		if (strcmp(key, "Connection") == 0)
 		{
@@ -203,7 +209,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		}
 	}
 
-	if (host == 0) // if Host not present
+	if (host == 0 || bad_request == 1) // if Host not present
 	{
 		// build header
 		string header;
@@ -232,6 +238,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		struct stat finfo;
 		stat(full_path.c_str(), &finfo);
 		f_size = finfo.st_size;
+		// get mime type
 		string type = full_path.substr(full_path.find_last_of('.'));
 		//log->info("type: " + HttpdServer::mime[type]);
 		string mime_type;
