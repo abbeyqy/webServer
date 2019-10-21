@@ -174,9 +174,9 @@ string get_last_modified(const char *full_path)
 int HttpdServer::handle_request(char *buf, int client_sock)
 {
 	auto log = logger();
-	int host = 0;
+	// int host = 0;
 	int close = 0;
-	int bad_request = 0;
+	// int bad_request = 0;
 
 	// Copy the buffer to parse
 	char *buf_copy = (char *)malloc(strlen(buf) + 1);
@@ -191,11 +191,11 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	while (buf_copy != NULL)
 	{
 		char *line = strsep(&buf_copy, "\r\n");
-		if (strchr(line, ':') == NULL)
-		// check if ':' exists
-		{
-			bad_request = 1;
-		}
+		// if (strchr(line, ':') == NULL)
+		// // check if ':' exists
+		// {
+		// 	bad_request = 1;
+		// }
 		char *key = strsep(&line, ":");
 		if (strcmp(key, "Connection") == 0)
 		{
@@ -204,10 +204,10 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 				close = 1;
 			}
 		}
-		else if (strcmp(key, "Host") == 0)
-		{
-			host = 1;
-		}
+		// else if (strcmp(key, "Host") == 0)
+		// {
+		// 	host = 1;
+		// }
 	}
 
 	// if (host == 0 || bad_request == 1) // if Host not present
