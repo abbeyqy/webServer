@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#include <sys/sendfile.h>
 
 #include <time.h>
 #include <fstream>
@@ -173,9 +174,9 @@ string get_last_modified(const char *full_path)
 int HttpdServer::handle_request(char *buf, int client_sock)
 {
 	auto log = logger();
-	int host = 0;
+	// int host = 0;
 	int close = 0;
-	int bad_request = 0;
+	// int bad_request = 0;
 
 	// Copy the buffer to parse
 	char *buf_copy = (char *)malloc(strlen(buf) + 1);
@@ -190,11 +191,11 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	while (buf_copy != NULL)
 	{
 		char *line = strsep(&buf_copy, "\r\n");
-		if (strchr(line, ':') == NULL)
-		// check if ':' exists
-		{
-			bad_request = 1;
-		}
+		// if (strchr(line, ':') == NULL)
+		// // check if ':' exists
+		// {
+		// 	bad_request = 1;
+		// }
 		char *key = strsep(&line, ":");
 		if (strcmp(key, "Connection") == 0)
 		{
@@ -203,13 +204,27 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 				close = 1;
 			}
 		}
-		else if (strcmp(key, "Host") == 0)
-		{
-			host = 1;
-		}
+		// else if (strcmp(key, "Host") == 0)
+		// {
+		// 	host = 1;
+		// }
 	}
 
-	if (host == 0 || bad_request == 1) // if Host not present
+	// if (host == 0 || bad_request == 1) // if Host not present
+	// {
+	// 	// build header
+	// 	string header;
+	// 	header += "HTTP/1.1 400 CLIENT ERROR\r\n";
+	// 	header += "Server: Myserver 1.0\r\n";
+	// 	header += "\r\n";
+
+	// 	// send header
+	// 	send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
+	// 	return close;
+	// }
+
+	// check if url is valid (first char is "/")
+	if (strchr(url, '/') != url)
 	{
 		// build header
 		string header;
@@ -275,8 +290,8 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		int fd = open(full_path.c_str(), O_RDONLY);
 		fstat(fd, &finfo);
 		off_t off = 0;
-		//int h = sendmmsg(fd, client_sock, 0, &off, NULL, 0);
-		int h = sendmmsg(fd, client_sock, 0, &off, NULL, 0);
+		// int h = sendfile(fd, client_sock, 0, &off, NULL, 0);   // os version
+		int h = sendfile(client_sock, fd, &off, finfo.st_size);
 		log->info("sendfile status: {}", h);
 	}
 	return close;
