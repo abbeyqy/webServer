@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-#include <sys/sendfile.h>
+//#include <sys/sendfile.h>
 
 #include <time.h>
 #include <fstream>
@@ -269,7 +269,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		header += "Server: Myserver 1.0\r\n";
 		header += "Last-Modified: " + get_last_modified(full_path.c_str()) + "\r\n";
 		header += "Content-Length: " + to_string(f_size) + "\r\n";
-		header += "Content-type: " + mime_type;
+		header += "Content-type: " + mime_type + "\r\n";
 		header += "\r\n";
 	}
 	else
@@ -290,8 +290,8 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		int fd = open(full_path.c_str(), O_RDONLY);
 		fstat(fd, &finfo);
 		off_t off = 0;
-		// int h = sendfile(fd, client_sock, 0, &off, NULL, 0);   // os version
-		int h = sendfile(client_sock, fd, &off, finfo.st_size);
+		int h = sendfile(fd, client_sock, 0, &off, NULL, 0);   // os version
+		//int h = sendfile(client_sock, fd, &off, finfo.st_size);
 		log->info("sendfile status: {}", h);
 	}
 	return close;
