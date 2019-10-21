@@ -281,7 +281,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		header += "Server: Myserver 1.0\r\n";
 		header += "Last-Modified: " + get_last_modified(full_path.c_str()) + "\r\n";
 		header += "Content-Length: " + to_string(f_size) + "\r\n";
-		header += "Content-type: " + mime_type + "\r\n";
+		header += "Content-Type: " + mime_type + "\r\n";
 		header += "\r\n";
 	}
 	else
