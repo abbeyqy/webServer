@@ -13,6 +13,7 @@ public:
 
 	int launch();
 	void handle_request(char *buf, int client_sock);
+	static map<string,string> mime;
 
 protected:
 	INIReader &config;

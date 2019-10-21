@@ -17,6 +17,12 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 
+#include <time.h>
+#include <fstream>
+#include <sstream>
+
+map<string,string> HttpdServer::mime; 
+
 HttpdServer::HttpdServer(INIReader &t_config)
 	: config(t_config)
 {
@@ -37,6 +43,18 @@ HttpdServer::HttpdServer(INIReader &t_config)
 		exit(EX_CONFIG);
 	}
 	doc_root = dr;
+
+	// buffer mime.types
+	string line;
+
+	ifstream infile("mime.types");
+
+	while (getline(infile, line)){
+	    istringstream iss(line);
+	    //log->info(line);
+	    int space = line.find(' ');
+	    mime[line.substr(0,space)] = line.substr(space + 1);
+	}
 }
 
 int HttpdServer::launch()
@@ -118,6 +136,14 @@ int HttpdServer::launch()
 
 string get_last_modified(const char* full_path){
 
+	//auto log = logger();
+
+	// struct stat info;
+ //    stat(full_path, &info);
+
+ //    printf(ctime(&info.st_mtimespec));
+ //    return 0;
+
 	FILE* fp;
 	int fd;
 	struct stat tbuf;
@@ -135,6 +161,7 @@ string get_last_modified(const char* full_path){
 	strftime(timebuf, sizeof(timebuf), "%a, %d %b %y %T %z", &lt);
 	
 	fclose(fp);
+
 	return timebuf;
 }
 
@@ -181,13 +208,19 @@ void HttpdServer::handle_request(char *buf, int client_sock)
 		struct stat finfo;
 		stat(full_path.c_str(), &finfo);
 		f_size = finfo.st_size;
+		string type = full_path.substr(full_path.find_last_of('.'));
+		//log->info("type: " + HttpdServer::mime[type]);
+		string mime_type;
+		if(HttpdServer::mime.find(type) == HttpdServer::mime.end()){
+			mime_type = "application/octet-stream";
+		}else mime_type = HttpdServer::mime[type];
 
 		// build header
 		header += "HTTP/1.1 200 OK\r\n";
 		header += "Server: Myserver 1.0\r\n";
-		header += "Last-Modified: "+ get_last_modified(full_path.c_str())+"\r\n";// Todo
+		header += "Last-Modified: "+ get_last_modified(full_path.c_str())+"\r\n";
 		header += "Content-Length: " + to_string(f_size) + "\r\n";
-		header += "Content-type: ";
+		header += "Content-type: " + mime_type;
 		header += "\r\n";
 	}
 	else
