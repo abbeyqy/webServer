@@ -21,7 +21,7 @@
 #include <fstream>
 #include <sstream>
 
-map<string,string> HttpdServer::mime; 
+map<string, string> HttpdServer::mime;
 
 HttpdServer::HttpdServer(INIReader &t_config)
 	: config(t_config)
@@ -49,15 +49,16 @@ HttpdServer::HttpdServer(INIReader &t_config)
 
 	ifstream infile("mime.types");
 
-	while (getline(infile, line)){
-	    istringstream iss(line);
-	    //log->info(line);
-	    int space = line.find(' ');
-	    mime[line.substr(0,space)] = line.substr(space + 1);
+	while (getline(infile, line))
+	{
+		istringstream iss(line);
+		//log->info(line);
+		int space = line.find(' ');
+		mime[line.substr(0, space)] = line.substr(space + 1);
 	}
 }
 
-int HttpdServer::launch()
+void HttpdServer::launch()
 {
 	auto log = logger();
 
@@ -74,7 +75,7 @@ int HttpdServer::launch()
 	if (sock < 0)
 	{
 		cerr << "ERROR WHILE CREATING SOCKET" << endl;
-		return 0;
+		return;
 	}
 
 	// create a sockaddr_in struct
@@ -91,7 +92,7 @@ int HttpdServer::launch()
 	{
 		cerr << "ERROR WHILE BINDING SOCKET" << endl;
 		close(sock);
-		return 0;
+		return;
 	}
 
 	log->info("SERVER IS RUNNING");
@@ -125,32 +126,36 @@ int HttpdServer::launch()
 		}
 
 		// Handle file request
-		handle_request(buffer, client_sock);
+		int to_close = handle_request(buffer, client_sock);
 
 		// 5. close
 		close(client_sock);
-		sleep(1);
+		if (to_close)
+		{
+			break;
+		}
 	}
 	close(sock);
 }
 
-string get_last_modified(const char* full_path){
+string get_last_modified(const char *full_path)
+{
 
 	//auto log = logger();
 
 	// struct stat info;
- //    stat(full_path, &info);
+	//    stat(full_path, &info);
 
- //    printf(ctime(&info.st_mtimespec));
- //    return 0;
+	//    printf(ctime(&info.st_mtimespec));
+	//    return 0;
 
-	FILE* fp;
+	FILE *fp;
 	int fd;
 	struct stat tbuf;
-	fp = fopen(full_path,"r");
+	fp = fopen(full_path, "r");
 	fd = fileno(fp);
-	
-	fstat(fd,&tbuf);
+
+	fstat(fd, &tbuf);
 
 	time_t modified_time = tbuf.st_mtime;
 	struct tm lt;
@@ -159,15 +164,17 @@ string get_last_modified(const char* full_path){
 	localtime_r(&modified_time, &lt);
 	char timebuf[80];
 	strftime(timebuf, sizeof(timebuf), "%a, %d %b %y %T %z", &lt);
-	
+
 	fclose(fp);
 
 	return timebuf;
 }
 
-void HttpdServer::handle_request(char *buf, int client_sock)
+int HttpdServer::handle_request(char *buf, int client_sock)
 {
 	auto log = logger();
+	int host = 0;
+	int close = 0;
 
 	// Copy the buffer to parse
 	char *buf_copy = (char *)malloc(strlen(buf) + 1);
@@ -178,18 +185,35 @@ void HttpdServer::handle_request(char *buf, int client_sock)
 	strsep(&first_line, " ");
 	char *url = strsep(&first_line, " ");
 
-	// Get Host header
-	char *second_line = strsep(&buf_copy, "\r\n");
-	if (strcmp(strsep(&second_line, ":"), "Host") == 0)	// if Host not present
+	// parse the following part of the request
+	while (buf_copy != NULL)
+	{
+		char *line = strsep(&buf_copy, "\r\n");
+		char *key = strsep(&line, ":");
+		if (strcmp(key, "Connection") == 0)
+		{
+			if (strcmp(line, "close") == 0)
+			{
+				close = 1;
+			}
+		}
+		else if (strcmp(key, "Host") == 0)
+		{
+			host = 1;
+		}
+	}
+
+	if (host == 0) // if Host not present
 	{
 		// build header
 		string header;
 		header += "HTTP/1.1 400 CLIENT ERROR\r\n";
+		header += "Server: Myserver 1.0\r\n";
 		header += "\r\n";
 
 		// send header
 		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
-		return;
+		return close;
 	}
 
 	// Prepend doc root to get the absolute path
@@ -211,14 +235,17 @@ void HttpdServer::handle_request(char *buf, int client_sock)
 		string type = full_path.substr(full_path.find_last_of('.'));
 		//log->info("type: " + HttpdServer::mime[type]);
 		string mime_type;
-		if(HttpdServer::mime.find(type) == HttpdServer::mime.end()){
+		if (HttpdServer::mime.find(type) == HttpdServer::mime.end())
+		{
 			mime_type = "application/octet-stream";
-		}else mime_type = HttpdServer::mime[type];
+		}
+		else
+			mime_type = HttpdServer::mime[type];
 
 		// build header
 		header += "HTTP/1.1 200 OK\r\n";
 		header += "Server: Myserver 1.0\r\n";
-		header += "Last-Modified: "+ get_last_modified(full_path.c_str())+"\r\n";
+		header += "Last-Modified: " + get_last_modified(full_path.c_str()) + "\r\n";
 		header += "Content-Length: " + to_string(f_size) + "\r\n";
 		header += "Content-type: " + mime_type;
 		header += "\r\n";
@@ -244,4 +271,5 @@ void HttpdServer::handle_request(char *buf, int client_sock)
 		int h = sendfile(fd, client_sock, 0, &off, NULL, 0);
 		log->info("sendfile status: {}", h);
 	}
+	return close;
 }

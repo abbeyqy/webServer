@@ -11,9 +11,9 @@ class HttpdServer
 public:
 	HttpdServer(INIReader &t_config);
 
-	int launch();
-	void handle_request(char *buf, int client_sock);
-	static map<string,string> mime;
+	void launch();
+	int handle_request(char *buf, int client_sock);
+	static map<string, string> mime;
 
 protected:
 	INIReader &config;
