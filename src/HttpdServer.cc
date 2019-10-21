@@ -199,11 +199,13 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		char *line = strsep(&buf_copy, "\r\n");
 		// check if request header is valid
 		string sline = line;
+		cout << sline << endl;
 		regex r("(\\w)+: (.)*");
 		if (!regex_match(sline, r))
 		{
 			bad_request = 1;
 		}
+
 		char *key = strsep(&line, ":");
 		if (strcmp(key, "Connection") == 0)
 		{
