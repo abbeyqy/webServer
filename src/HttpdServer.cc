@@ -172,6 +172,22 @@ string get_last_modified(const char *full_path)
 	return timebuf;
 }
 
+string get_error_header(int error_code)
+{
+	string header;
+	if (error_code == 400)
+	{
+		header += "HTTP/1.1 400 CLIENT ERROR\r\n";
+	}
+	else if (error_code == 404)
+	{
+		header += "HTTP/1.1 404 NOT FOUND\r\n";
+	}
+	header += "Server: Myserver 1.0\r\n";
+	header += "\r\n";
+	return header;
+}
+
 int HttpdServer::handle_request(char *buf, int client_sock)
 {
 	auto log = logger();
@@ -207,7 +223,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		{
 			bad_request = 1;
 		}
-
+		// check if there is Connection: close
 		char *key = strsep(&line, ":");
 		if (strcmp(key, "Connection") == 0)
 		{
@@ -222,29 +238,23 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		// }
 	}
 
-	// if (host == 0 || bad_request == 1) // if Host not present or format invalid
-	if (bad_request == 1)
+	// if (host == 0 || bad_request == 1 || strchr(url, '/') != url) // if Host not present or format invalid
+	if (bad_request == 1 || strchr(url, '/') != url)
 	{
 		// build header
-		string header;
-		header += "HTTP/1.1 400 CLIENT ERROR\r\n";
-		header += "Server: Myserver 1.0\r\n";
-		header += "\r\n";
+		string header = get_error_header(400);
 
 		// send header
 		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
 		return close;
 	}
 
-	// check if url is valid (first char is "/")
-	if (strchr(url, '/') != url)
+	// check if url escapes doc_root, return 404
+	char actualpath[PATH_MAX + 1];
+	string abs_path = realpath(url, actualpath);
+	if (abs_path.find(doc_root) == string::npos)
 	{
-		// build header
-		string header;
-		header += "HTTP/1.1 400 CLIENT ERROR\r\n";
-		header += "Server: Myserver 1.0\r\n";
-		header += "\r\n";
-
+		string header = get_error_header(404);
 		// send header
 		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
 		return close;
@@ -296,9 +306,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	else
 	// requested file not there
 	{
-		header += "HTTP/1.1 404 NOT FOUND\r\n";
-		header += "Server: Myserver 1.0\r\n";
-		header += "\r\n";
+		string header = get_error_header(404);
 	}
 
 	// Send headers
