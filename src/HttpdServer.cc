@@ -224,7 +224,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	// }
 
 	// check if url is valid (first char is "/")
-	if (strchr(url, '/') != 0)
+	if (strchr(url, '/') != url)
 	{
 		// build header
 		string header;
