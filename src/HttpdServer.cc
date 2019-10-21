@@ -177,7 +177,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	auto log = logger();
 	// int host = 0;
 	int close = 0;
-	// int bad_request = 0;
+	int bad_request = 0;
 
 	// Copy the buffer to parse
 	char *buf_copy = (char *)malloc(strlen(buf) + 1);
