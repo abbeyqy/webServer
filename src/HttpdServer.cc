@@ -184,8 +184,9 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	strcpy(buf_copy, buf);
 
 	// Get the url
+	char *buf_copy1 = strsep(&buf_copy, "\r\n\r\n"); // exclude the last line
 	// GET / HTTP/1.1
-	char *first_line = strsep(&buf_copy, "\r\n"); // CR = \r, LF = \n
+	char *first_line = strsep(&buf_copy1, "\r\n"); // CR = \r, LF = \n
 
 	// / HTTP/1,1
 	strsep(&first_line, " ");
@@ -194,17 +195,17 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	char *url = strsep(&first_line, " ");
 
 	// parse the following part of the request
-	while (buf_copy != NULL)
+	while (buf_copy1 != NULL)
 	{
-		char *line = strsep(&buf_copy, "\r\n");
+		char *line = strsep(&buf_copy1, "\r\n");
 		// check if request header is valid
-		// string sline = line;
-		// cout << sline << endl;
-		// regex r("(\\w)+: (.)*");
-		// if (!regex_match(sline, r))
-		// {
-		// 	bad_request = 1;
-		// }
+		string sline = line;
+		cout << sline << endl;
+		regex r("(\\w)+: (.)*");
+		if (!regex_match(sline, r))
+		{
+			bad_request = 1;
+		}
 
 		char *key = strsep(&line, ":");
 		if (strcmp(key, "Connection") == 0)
