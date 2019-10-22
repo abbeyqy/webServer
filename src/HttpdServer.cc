@@ -190,15 +190,15 @@ string get_error_header(int error_code)
 
 bool escape_doc_root(string path, string doc_root)
 {
-	char *cpath = realpath(path.c_str(), NULL);
-	char *docroot = realpath(doc_root.c_str(), NULL);
-	if (cpath == NULL || docroot == NULL)
+	char *c_real_path = realpath(path.c_str(), NULL);
+	char *c_real_docpath = realpath(doc_root.c_str(), NULL);
+	if (c_real_path == NULL || c_real_docpath == NULL)
 	{
 		return true;
 	}
-	string path = cpath;
-	string docpath = docroot;
-	if (path.find(docpath) == 0)
+	string real_path = c_real_path;
+	string real_docpath = c_real_docpath;
+	if (real_path.find(real_docpath) == 0)
 	{
 		return false;
 	}
