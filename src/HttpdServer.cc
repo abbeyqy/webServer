@@ -23,6 +23,7 @@
 #include <time.h>
 #include <fstream>
 #include <sstream>
+#include <pthread.h> // for multithreading
 
 map<string, string> HttpdServer::mime;
 struct timeval timeout;
