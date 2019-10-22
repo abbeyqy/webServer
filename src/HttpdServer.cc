@@ -24,6 +24,7 @@
 #include <sstream>
 
 map<string, string> HttpdServer::mime;
+struct timeval timeout;
 
 HttpdServer::HttpdServer(INIReader &t_config)
 	: config(t_config)
@@ -123,6 +124,10 @@ void HttpdServer::launch()
 
 		char complete_request[1000];
 		bzero(complete_request, 1000);
+
+		timeout.tv_sec = 5;
+		timeout.tv_usec = 0;
+
 		while (1)
 		{
 			int n = read(client_sock, buffer, 256);
@@ -153,6 +158,11 @@ void HttpdServer::launch()
 			{
 				string sbefore_end = before_end;
 				strcat(complete_request, sbefore_end.c_str());
+			}
+
+			// handle timeout
+			if (setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+				break;
 			}
 
 			// Handle a complete request
@@ -228,6 +238,7 @@ string get_error_header(int error_code)
 
 bool escape_doc_root(string path, string doc_root)
 {
+	auto log = logger();
 	char *c_real_path = realpath(path.c_str(), NULL);
 	char *c_real_docpath = realpath(doc_root.c_str(), NULL);
 	if (c_real_path == NULL || c_real_docpath == NULL)
@@ -307,6 +318,16 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	// Prepend doc root to get the absolute path
 	string full_path = doc_root + url;
 
+	// “http://server:port/" map to “http://server:port/index.html"
+	log->info(url);
+	if (strcmp(url, "/") == 0)
+	{
+		log->info("transofrm");
+		full_path += "index.html";
+	}
+
+	log->info("Get file: {}", full_path);
+
 	// check if url escapes doc_root, return 404
 	if (escape_doc_root(full_path, doc_root))
 	{
@@ -315,15 +336,6 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
 		return close;
 	}
-
-	// “http://server:port/" map to “http://server:port/index.html"
-	if (strcmp(url, "/") == 0)
-	{
-		log->info("transofrm");
-		full_path += "index.html";
-	}
-
-	log->info("Get file: {}", full_path);
 	string header;
 
 	// Validate the file path
@@ -372,7 +384,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		int fd = open(full_path.c_str(), O_RDONLY);
 		fstat(fd, &finfo);
 		off_t off = 0;
-		// int h = sendfile(fd, client_sock, 0, &off, NULL, 0); // os version
+		//int h = sendfile(fd, client_sock, 0, &off, NULL, 0); // os version
 		int h = sendfile(client_sock, fd, &off, finfo.st_size);
 		log->info("sendfile status: {}", h);
 	}
