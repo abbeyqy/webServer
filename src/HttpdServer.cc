@@ -120,22 +120,57 @@ void HttpdServer::launch()
 			close(sock);
 			continue;
 		}
-		int n = read(client_sock, buffer, 256);
 
-		if (n < 0)
+		char complete_request[1000];
+		bzero(complete_request, 1000);
+		while (1)
 		{
-			cerr << "ERROR WHILE GETTING MESSAGE" << endl;
-		}
+			int n = read(client_sock, buffer, 256);
 
-		// Handle file request
-		int to_close = handle_request(buffer, client_sock);
+			if (n < 0)
+			{
+				cerr << "ERROR WHILE GETTING MESSAGE" << endl;
+				break;
+			}
+
+			if (buffer == NULL)
+			{
+				continue;
+			}
+
+			string sbuffer = buffer;
+			if (sbuffer.find("\r\n\r\n") == string::npos)
+			// content in buffer has not reach the end of the request
+			{
+				strcat(complete_request, sbuffer);
+				continue;
+			}
+
+			char *before_end = strsep(&buffer, "\r\n\r\n");
+			if (before_end != NULL)
+			{
+				string sbefore_end = before_end;
+				strcat(complete_request, sbefore_end);
+			}
+
+			// Handle a complete request
+			int to_close = handle_request(complete_request.c_str(), client_sock);
+			if (to_close)
+			{
+				break;
+			}
+
+			char complete_request[1000];
+			bzero(complete_request, 1000);
+			if (buffer != NULL)
+			{
+				string pre_buffer = buffer;
+				strcpy(complete_request, pre_buffer);
+			}
+		}
 
 		// 5. close
 		close(client_sock);
-		if (to_close)
-		{
-			break;
-		}
 	}
 	close(sock);
 }
@@ -217,7 +252,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	strcpy(buf_copy, buf);
 
 	// Get the url
-	char *buf_copy1 = strsep(&buf_copy, "\r\n\r\n"); // exclude the last line
+	// char *buf_copy1 = strsep(&buf_copy, "\r\n\r\n"); // exclude the last line
 
 	// GET / HTTP/1.1
 	char *first_line = strsep(&buf_copy1, "\r\n"); // CR = \r, LF = \n
