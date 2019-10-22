@@ -258,7 +258,7 @@ bool escape_doc_root(string path, string doc_root)
 int HttpdServer::handle_request(char *buf, int client_sock)
 {
 	auto log = logger();
-	// int host = 0;
+	int host = 0;
 	int close = 0;
 	int bad_request = 0;
 
@@ -267,7 +267,6 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	strcpy(buf_copy1, buf);
 
 	// Get the url
-
 	// GET / HTTP/1.1
 	char *first_line = strsep(&buf_copy1, "\r\n"); // CR = \r, LF = \n
 
