@@ -202,7 +202,7 @@ bool escape_doc_root(string path, string doc_root)
 	{
 		return false;
 	}
-	return true
+	return true;
 }
 
 int HttpdServer::handle_request(char *buf, int client_sock)
