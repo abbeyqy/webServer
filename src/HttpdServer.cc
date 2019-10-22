@@ -298,7 +298,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	{
 		// build header
 		string header = get_error_header(400);
-
+		close = 1;
 		// send header
 		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
 		return close;
