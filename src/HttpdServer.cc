@@ -133,12 +133,14 @@ void HttpdServer::launch()
 				break;
 			}
 
-			if (buffer == NULL)
+			char *buffer_ptr = buffer;
+
+			if (buffer_ptr == NULL)
 			{
 				continue;
 			}
 
-			string sbuffer = buffer;
+			string sbuffer = buffer_ptr;
 			if (sbuffer.find("\r\n\r\n") == string::npos)
 			// content in buffer has not reach the end of the request
 			{
@@ -146,7 +148,7 @@ void HttpdServer::launch()
 				continue;
 			}
 
-			char *before_end = strsep(&buffer, "\r\n\r\n");
+			char *before_end = strsep(&buffer_ptr, "\r\n\r\n");
 			if (before_end != NULL)
 			{
 				string sbefore_end = before_end;
@@ -163,9 +165,9 @@ void HttpdServer::launch()
 			// deal with next request
 			char complete_request[1000];
 			bzero(complete_request, 1000);
-			if (buffer != NULL)
+			if (buffer_ptr != NULL)
 			{
-				string pre_buffer = buffer;
+				string pre_buffer = buffer_ptr;
 				strcpy(complete_request, pre_buffer.c_str());
 			}
 		}
@@ -249,8 +251,8 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	int bad_request = 0;
 
 	// Copy the buffer to parse
-	char *buf_copy = (char *)malloc(strlen(buf) + 1);
-	strcpy(buf_copy, buf);
+	char *buf_copy1 = (char *)malloc(strlen(buf) + 1);
+	strcpy(buf_copy1, buf);
 
 	// Get the url
 	// char *buf_copy1 = strsep(&buf_copy, "\r\n\r\n"); // exclude the last line
@@ -370,7 +372,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		int fd = open(full_path.c_str(), O_RDONLY);
 		fstat(fd, &finfo);
 		off_t off = 0;
-		//int h = sendfile(fd, client_sock, 0, &off, NULL, 0);   // os version
+		// int h = sendfile(fd, client_sock, 0, &off, NULL, 0); // os version
 		int h = sendfile(client_sock, fd, &off, finfo.st_size);
 		log->info("sendfile status: {}", h);
 	}
