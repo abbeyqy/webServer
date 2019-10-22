@@ -161,7 +161,8 @@ void HttpdServer::launch()
 			}
 
 			// handle timeout
-			if (setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+			if (setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+			{
 				break;
 			}
 
@@ -266,7 +267,6 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	strcpy(buf_copy1, buf);
 
 	// Get the url
-	// char *buf_copy1 = strsep(&buf_copy, "\r\n\r\n"); // exclude the last line
 
 	// GET / HTTP/1.1
 	char *first_line = strsep(&buf_copy1, "\r\n"); // CR = \r, LF = \n
@@ -277,7 +277,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	// /
 	char *url = strsep(&first_line, " ");
 
-	// parse the following part of the request
+	// parse the next part of the request (key: value)
 	while (buf_copy1 != NULL)
 	{
 		char *line = strsep(&buf_copy1, "\r\n");
@@ -298,14 +298,15 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 				close = 1;
 			}
 		}
-		// else if (strcmp(key, "Host") == 0)
-		// {
-		// 	host = 1;
-		// }
+		// check if "Host" exists
+		else if (strcmp(key, "Host") == 0)
+		{
+			host = 1;
+		}
 	}
 
-	// if (host == 0 || bad_request == 1 || strchr(url, '/') != url) // if Host not present or format invalid
-	if (bad_request == 1 || strchr(url, '/') != url)
+	if (host == 0 || bad_request == 1 || strchr(url, '/') != url) // if Host not present or format invalid
+	// if (bad_request == 1 || strchr(url, '/') != url)
 	{
 		// build header
 		string header = get_error_header(400);
