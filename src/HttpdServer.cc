@@ -19,6 +19,7 @@
 #include <sys/uio.h>
 #include <sys/sendfile.h>
 
+#include <thread>
 #include <time.h>
 #include <fstream>
 #include <sstream>
@@ -298,7 +299,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 			}
 		}
 		// check if "Host" exists
-		else if (strcmp(key, "Host") == 0)
+		if (strcmp(key, "Host") == 0)
 		{
 			host = 1;
 		}
