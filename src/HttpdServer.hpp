@@ -13,6 +13,7 @@ public:
 
 	void launch();
 	int handle_request(char *buf, int client_sock);
+	void client_handler(int client_sock);
 	static map<string, string> mime;
 
 protected:

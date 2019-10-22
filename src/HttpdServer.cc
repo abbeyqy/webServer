@@ -121,75 +121,8 @@ void HttpdServer::launch()
 			continue;
 		}
 
-		char complete_request[1000];
-		bzero(complete_request, 1000);
-
-		char buffer[256];
-		bzero(buffer, 256);
-
-		timeout.tv_sec = 5;
-		timeout.tv_usec = 0;
-
-		while (1)
-		{
-			bzero(buffer, 256);
-			int n = read(client_sock, buffer, 256);
-
-			if (n < 0)
-			{
-				cerr << "ERROR WHILE GETTING MESSAGE" << endl;
-				break;
-			}
-
-			string sbuffer(buffer);
-			if (sbuffer.length() == 0)
-			{
-				continue;
-			}
-			size_t pos = sbuffer.find("\r\n\r\n");
-			if (pos == string::npos)
-			// content in buffer has not reach the end of the request
-			{
-				log->info("Has not found end symbol in the buffer.");
-				strcat(complete_request, sbuffer.c_str());
-				continue;
-			}
-
-			string sbefore_end = sbuffer.substr(0, pos);
-			strcat(complete_request, sbefore_end.c_str());
-
-			// handle timeout
-			if (setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
-			{
-				break;
-			}
-
-			// Handle a complete request
-			string request = complete_request;
-			log->info("Handling a new request: {}", request);
-			log->info("======Start processing the request.");
-			int to_close = handle_request(complete_request, client_sock);
-			log->info("======Finish processing the request.");
-			if (to_close)
-			{
-				break;
-			}
-
-			// deal with next request
-			bzero(complete_request, 1000);
-			if (sbuffer.length() != pos + 4)
-			{
-				log->info("Has more request to proceed...");
-				string pre_buffer = sbuffer.substr(pos + 4, sbuffer.length());
-				log->info("pre_buffer has something: {}", pre_buffer);
-				strcpy(complete_request, pre_buffer.c_str());
-				log->info("strcpy succeeds!");
-			}
-		}
-
-		// 5. close
-		log->info("Close client sock!");
-		close(client_sock);
+		thread t1(&HttpdServer::client_handler, this, client_sock);
+		t1.detach();
 	}
 	close(sock);
 }
@@ -261,6 +194,79 @@ bool escape_doc_root(string path, string doc_root)
 	return true;
 }
 
+void HttpdServer::client_handler(int client_sock)
+{
+	auto log = logger();
+	char complete_request[1000];
+	bzero(complete_request, 1000);
+
+	char buffer[256];
+	bzero(buffer, 256);
+
+	timeout.tv_sec = 5;
+	timeout.tv_usec = 0;
+
+	while (1)
+	{
+		bzero(buffer, 256);
+		int n = read(client_sock, buffer, 256);
+
+		if (n < 0)
+		{
+			cerr << "ERROR WHILE GETTING MESSAGE" << endl;
+			break;
+		}
+
+		string sbuffer(buffer);
+		if (sbuffer.length() == 0)
+		{
+			continue;
+		}
+		size_t pos = sbuffer.find("\r\n\r\n");
+		if (pos == string::npos)
+		// content in buffer has not reach the end of the request
+		{
+			log->info("Has not found end symbol in the buffer.");
+			strcat(complete_request, sbuffer.c_str());
+			continue;
+		}
+
+		string sbefore_end = sbuffer.substr(0, pos);
+		strcat(complete_request, sbefore_end.c_str());
+
+		// handle timeout
+		if (setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+		{
+			break;
+		}
+
+		// Handle a complete request
+		string request = complete_request;
+		log->info("Handling a new request: {}", request);
+		log->info("======Start processing the request.");
+		int to_close = handle_request(complete_request, client_sock);
+		log->info("======Finish processing the request.");
+		if (to_close)
+		{
+			break;
+		}
+
+		// deal with next request
+		bzero(complete_request, 1000);
+		if (sbuffer.length() != pos + 4)
+		{
+			log->info("Has more request to proceed...");
+			string pre_buffer = sbuffer.substr(pos + 4, sbuffer.length());
+			log->info("pre_buffer has something: {}", pre_buffer);
+			strcpy(complete_request, pre_buffer.c_str());
+			log->info("strcpy succeeds!");
+		}
+	}
+	// 5. close
+	log->info("Close client sock!");
+	close(client_sock);
+}
+
 int HttpdServer::handle_request(char *buf, int client_sock)
 {
 	auto log = logger();
@@ -330,6 +336,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	// check if url escapes doc_root, return 404
 	if (escape_doc_root(full_path, doc_root))
 	{
+		log->info("Url escapes doc root/ file not found!");
 		string header = get_error_header(404);
 		// send header
 		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
@@ -348,7 +355,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 
 	string header;
 
-	// Validate the file path
+	// Validate the file path, useless now... but keep it forsake it might be useful...
 	int is_valid = access(full_path.c_str(), F_OK);
 
 	if (is_valid == 0)
@@ -382,6 +389,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	// requested file not there
 	else
 	{
+		log->info("File not Found!");
 		string header = get_error_header(404);
 	}
 
