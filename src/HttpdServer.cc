@@ -17,7 +17,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-#include <sys/sendfile.h>
+// #include <sys/sendfile.h>
 
 #include <thread>
 #include <time.h>
@@ -139,27 +139,22 @@ void HttpdServer::launch()
 				break;
 			}
 
-			char *buffer_ptr = buffer;
-
-			if (buffer_ptr == NULL)
+			string sbuffer(buffer);
+			if (sbuffer.length() == 0)
 			{
 				continue;
 			}
-
-			string sbuffer = buffer_ptr;
-			if (sbuffer.find("\r\n\r\n") == string::npos)
+			size_t pos = sbuffer.find("\r\n\r\n");
+			if (pos == string::npos)
 			// content in buffer has not reach the end of the request
 			{
+				log->info("Has not found end symbol in the buffer.");
 				strcat(complete_request, sbuffer.c_str());
 				continue;
 			}
 
-			char *before_end = strsep(&buffer_ptr, "\r\n\r\n");
-			if (before_end != NULL)
-			{
-				string sbefore_end = before_end;
-				strcat(complete_request, sbefore_end.c_str());
-			}
+			string sbefore_end = sbuffer.substr(0, pos);
+			strcat(complete_request, sbefore_end.c_str());
 
 			// handle timeout
 			if (setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
@@ -168,19 +163,27 @@ void HttpdServer::launch()
 			}
 
 			// Handle a complete request
+			string request = complete_request;
+			log->info("Handling a new request: {}", request);
+			log->info("======Start processing the request.");
 			int to_close = handle_request(complete_request, client_sock);
+			log->info("======Finish processing the request.");
 			if (to_close)
 			{
 				break;
 			}
 
 			// deal with next request
-			char complete_request[1000];
 			bzero(complete_request, 1000);
-			if (buffer_ptr != NULL)
+			string request1 = complete_request;
+			log->info("Check request cleaned: {}", request1);
+			if (sbuffer.length() != pos + 4)
 			{
-				string pre_buffer = buffer_ptr;
+				log->info("Has more request to proceed...");
+				string pre_buffer = sbuffer.substr(pos + 4, sbuffer.length());
+				log->info("pre_buffer has something: {}", pre_buffer);
 				strcpy(complete_request, pre_buffer.c_str());
+				log->info("strcpy succeeds!");
 			}
 		}
 
@@ -259,7 +262,7 @@ bool escape_doc_root(string path, string doc_root)
 int HttpdServer::handle_request(char *buf, int client_sock)
 {
 	auto log = logger();
-	int host = 0;
+	// int host = 0;
 	int close = 0;
 	int bad_request = 0;
 
@@ -269,7 +272,8 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 
 	// Get the url
 	// GET / HTTP/1.1
-	char *first_line = strsep(&buf_copy1, "\r\n"); // CR = \r, LF = \n
+	char *first_line = strsep(&buf_copy1, "\r"); // CR = \r, LF = \n
+	strsep(&buf_copy1, "\n");
 
 	// / HTTP/1,1
 	strsep(&first_line, " ");
@@ -280,33 +284,35 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	// parse the next part of the request (key: value)
 	while (buf_copy1 != NULL)
 	{
-		char *line = strsep(&buf_copy1, "\r\n");
+		char *line = strsep(&buf_copy1, "\r");
+		strsep(&buf_copy1, "\n");
 		// check if request header is valid
 		string sline = line;
-		cout << sline << endl;
-		regex r("(\\w)+: (.)*");
+		regex r("(\\S)+: (.)*");
 		if (!regex_match(sline, r))
 		{
+			log->info("mal-formed request: {}", sline);
 			bad_request = 1;
 		}
-		// check if there is Connection: close
+
 		char *key = strsep(&line, ":");
+		// check if there is Connection: close
 		if (strcmp(key, "Connection") == 0)
 		{
-			if (strcmp(line, "close") == 0)
+			if (strcmp(line, " close") == 0)
 			{
 				close = 1;
 			}
 		}
 		// check if "Host" exists
-		if (strcmp(key, "Host") == 0)
-		{
-			host = 1;
-		}
+		// if (strcmp(key, "Host") == 0)
+		// {
+		// 	host = 1;
+		// }
 	}
 
-	if (host == 0 || bad_request == 1 || strchr(url, '/') != url) // if Host not present or format invalid
-	// if (bad_request == 1 || strchr(url, '/') != url)
+	// if (host == 0 || bad_request == 1 || strchr(url, '/') != url) // if Host not present or format invalid
+	if (bad_request == 1 || strchr(url, '/') != url)
 	{
 		// build header
 		string header = get_error_header(400);
@@ -320,7 +326,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	string full_path = doc_root + url;
 
 	// “http://server:port/" map to “http://server:port/index.html"
-	log->info(url);
+	log->info("url: {}", url);
 	if (strcmp(url, "/") == 0)
 	{
 		log->info("transofrm");
@@ -385,9 +391,10 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		int fd = open(full_path.c_str(), O_RDONLY);
 		fstat(fd, &finfo);
 		off_t off = 0;
-		//int h = sendfile(fd, client_sock, 0, &off, NULL, 0); // os version
-		int h = sendfile(client_sock, fd, &off, finfo.st_size);
+		int h = sendfile(fd, client_sock, 0, &off, NULL, 0); // os version
+		// ssize_t h = sendfile(client_sock, fd, &off, finfo.st_size);
 		log->info("sendfile status: {}", h);
 	}
+	log->info("Request processed. Close connection? {}", close);
 	return close;
 }
