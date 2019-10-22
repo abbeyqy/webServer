@@ -107,9 +107,6 @@ void HttpdServer::launch()
 	struct sockaddr_in client_address;
 	socklen_t client_length = sizeof(client_address);
 
-	char buffer[256];
-	bzero(buffer, 256);
-
 	// 4. accept and receive
 	while (1)
 	{
@@ -126,11 +123,15 @@ void HttpdServer::launch()
 		char complete_request[1000];
 		bzero(complete_request, 1000);
 
+		char buffer[256];
+		bzero(buffer, 256);
+
 		timeout.tv_sec = 5;
 		timeout.tv_usec = 0;
 
 		while (1)
 		{
+			bzero(buffer, 256);
 			int n = read(client_sock, buffer, 256);
 
 			if (n < 0)
@@ -175,8 +176,6 @@ void HttpdServer::launch()
 
 			// deal with next request
 			bzero(complete_request, 1000);
-			string request1 = complete_request;
-			log->info("Check request cleaned: {}", request1);
 			if (sbuffer.length() != pos + 4)
 			{
 				log->info("Has more request to proceed...");
@@ -188,6 +187,7 @@ void HttpdServer::launch()
 		}
 
 		// 5. close
+		log->info("Close client sock!");
 		close(client_sock);
 	}
 	close(sock);
