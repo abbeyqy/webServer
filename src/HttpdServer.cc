@@ -142,7 +142,7 @@ void HttpdServer::launch()
 			if (sbuffer.find("\r\n\r\n") == string::npos)
 			// content in buffer has not reach the end of the request
 			{
-				strcat(complete_request, sbuffer);
+				strcat(complete_request, sbuffer.c_str());
 				continue;
 			}
 
@@ -150,22 +150,23 @@ void HttpdServer::launch()
 			if (before_end != NULL)
 			{
 				string sbefore_end = before_end;
-				strcat(complete_request, sbefore_end);
+				strcat(complete_request, sbefore_end.c_str());
 			}
 
 			// Handle a complete request
-			int to_close = handle_request(complete_request.c_str(), client_sock);
+			int to_close = handle_request(complete_request, client_sock);
 			if (to_close)
 			{
 				break;
 			}
 
+			// deal with next request
 			char complete_request[1000];
 			bzero(complete_request, 1000);
 			if (buffer != NULL)
 			{
 				string pre_buffer = buffer;
-				strcpy(complete_request, pre_buffer);
+				strcpy(complete_request, pre_buffer.c_str());
 			}
 		}
 
