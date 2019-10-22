@@ -23,6 +23,7 @@
 #include <time.h>
 #include <fstream>
 #include <sstream>
+#include <pthread.h> // for multithreading
 
 map<string, string> HttpdServer::mime;
 struct timeval timeout;
@@ -252,6 +253,7 @@ bool escape_doc_root(string path, string doc_root)
 	}
 	string real_path = c_real_path;
 	string real_docpath = c_real_docpath;
+	log->info("abspath: " + real_docpath);
 	if (real_path.find(real_docpath) == 0)
 	{
 		return false;
@@ -325,6 +327,15 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 	// Prepend doc root to get the absolute path
 	string full_path = doc_root + url;
 
+	// check if url escapes doc_root, return 404
+	if (escape_doc_root(full_path, doc_root))
+	{
+		string header = get_error_header(404);
+		// send header
+		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
+		return close;
+	}
+
 	// “http://server:port/" map to “http://server:port/index.html"
 	log->info("url: {}", url);
 	if (strcmp(url, "/") == 0)
@@ -335,14 +346,6 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 
 	log->info("Get file: {}", full_path);
 
-	// check if url escapes doc_root, return 404
-	if (escape_doc_root(full_path, doc_root))
-	{
-		string header = get_error_header(404);
-		// send header
-		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
-		return close;
-	}
 	string header;
 
 	// Validate the file path
@@ -375,8 +378,9 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		header += "Content-Type: " + mime_type + "\r\n";
 		header += "\r\n";
 	}
-	else
+
 	// requested file not there
+	else
 	{
 		string header = get_error_header(404);
 	}
@@ -395,6 +399,7 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		// ssize_t h = sendfile(client_sock, fd, &off, finfo.st_size);
 		log->info("sendfile status: {}", h);
 	}
+
 	log->info("Request processed. Close connection? {}", close);
 	return close;
 }
