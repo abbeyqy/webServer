@@ -188,6 +188,23 @@ string get_error_header(int error_code)
 	return header;
 }
 
+bool escape_doc_root(string path, string doc_root)
+{
+	char *cpath = realpath(path.c_str(), NULL);
+	char *docroot = realpath(doc_root.c_str(), NULL);
+	if (cpath == NULL || docrot == NULL)
+	{
+		return true;
+	}
+	string path = cpath;
+	string docpath = docroot;
+	if (path.find(docpath) == 0)
+	{
+		return false;
+	}
+	return true
+}
+
 int HttpdServer::handle_request(char *buf, int client_sock)
 {
 	auto log = logger();
@@ -249,19 +266,17 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		return close;
 	}
 
+	// Prepend doc root to get the absolute path
+	string full_path = doc_root + url;
+
 	// check if url escapes doc_root, return 404
-	char actualpath[PATH_MAX + 1];
-	string abs_path = realpath(url, actualpath);
-	if (abs_path.find(doc_root) == string::npos)
+	if (escape_doc_root(full_path, doc_root))
 	{
 		string header = get_error_header(404);
 		// send header
 		send(client_sock, (void *)header.c_str(), (ssize_t)header.size(), 0);
 		return close;
 	}
-
-	// Prepend doc root to get the absolute path
-	string full_path = doc_root + url;
 
 	// “http://server:port/" map to “http://server:port/index.html"
 	if (strcmp(url, "/") == 0)
