@@ -192,7 +192,7 @@ bool escape_doc_root(string path, string doc_root)
 {
 	char *cpath = realpath(path.c_str(), NULL);
 	char *docroot = realpath(doc_root.c_str(), NULL);
-	if (cpath == NULL || docrot == NULL)
+	if (cpath == NULL || docroot == NULL)
 	{
 		return true;
 	}
