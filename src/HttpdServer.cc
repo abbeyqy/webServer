@@ -17,7 +17,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-//#include <sys/sendfile.h>
+#include <sys/sendfile.h>
 
 #include <time.h>
 #include <fstream>
@@ -387,8 +387,8 @@ int HttpdServer::handle_request(char *buf, int client_sock)
 		int fd = open(full_path.c_str(), O_RDONLY);
 		fstat(fd, &finfo);
 		off_t off = 0;
-		int h = sendfile(fd, client_sock, 0, &off, NULL, 0); // os version
-		//int h = sendfile(client_sock, fd, &off, finfo.st_size);
+		//int h = sendfile(fd, client_sock, 0, &off, NULL, 0); // os version
+		int h = sendfile(client_sock, fd, &off, finfo.st_size);
 		log->info("sendfile status: {}", h);
 	}
 
